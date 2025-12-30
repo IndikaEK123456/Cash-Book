@@ -5,7 +5,7 @@ import { fetchLkrRates } from './services/exchangeRateService';
 import LaptopView from './components/LaptopView';
 import MobileView from './components/MobileView';
 
-const LOCAL_STORAGE_KEY = 'shivas_beach_cabanas_data';
+const LOCAL_STORAGE_KEY = 'shivas_beach_cabanas_data_v1';
 
 const App: React.FC = () => {
   const [device, setDevice] = useState<DeviceView>('LAPTOP');
@@ -100,11 +100,14 @@ const App: React.FC = () => {
   };
 
   const endDay = () => {
-    setState(prev => ({
-      outPartyEntries: [],
-      mainEntries: [],
-      initialBalance: mainCalculations.drawerBalance
-    }));
+    const confirmed = window.confirm("Are you sure you want to End the Day? This will clear today's records and carry the balance forward.");
+    if (confirmed) {
+      setState(prev => ({
+        outPartyEntries: [],
+        mainEntries: [],
+        initialBalance: mainCalculations.drawerBalance
+      }));
+    }
   };
 
   return (
@@ -113,19 +116,19 @@ const App: React.FC = () => {
       <div className="bg-slate-900 text-white p-2 flex justify-center space-x-4 sticky top-0 z-50 shadow-md">
         <button 
           onClick={() => setDevice('LAPTOP')} 
-          className={`px-4 py-1 rounded-full text-xs font-bold transition-all ${device === 'LAPTOP' ? 'bg-blue-500 scale-105' : 'bg-slate-700 opacity-60 hover:opacity-100'}`}
+          className={`px-4 py-1 rounded-full text-xs font-bold transition-all ${device === 'LAPTOP' ? 'bg-blue-500 scale-105 shadow-[0_0_15px_rgba(59,130,246,0.5)]' : 'bg-slate-700 opacity-60 hover:opacity-100'}`}
         >
           💻 Laptop (Editor)
         </button>
         <button 
           onClick={() => setDevice('ANDROID')} 
-          className={`px-4 py-1 rounded-full text-xs font-bold transition-all ${device === 'ANDROID' ? 'bg-green-500 scale-105' : 'bg-slate-700 opacity-60 hover:opacity-100'}`}
+          className={`px-4 py-1 rounded-full text-xs font-bold transition-all ${device === 'ANDROID' ? 'bg-green-500 scale-105 shadow-[0_0_15px_rgba(34,197,94,0.5)]' : 'bg-slate-700 opacity-60 hover:opacity-100'}`}
         >
           🤖 Android (Viewer)
         </button>
         <button 
           onClick={() => setDevice('IPHONE')} 
-          className={`px-4 py-1 rounded-full text-xs font-bold transition-all ${device === 'IPHONE' ? 'bg-white text-black scale-105' : 'bg-slate-700 opacity-60 hover:opacity-100'}`}
+          className={`px-4 py-1 rounded-full text-xs font-bold transition-all ${device === 'IPHONE' ? 'bg-white text-black scale-105 shadow-[0_0_15px_rgba(255,255,255,0.3)]' : 'bg-slate-700 opacity-60 hover:opacity-100'}`}
         >
           🍎 iPhone (Viewer)
         </button>
