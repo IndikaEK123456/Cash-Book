@@ -5,12 +5,14 @@ import { fetchLkrRates } from './services/exchangeRateService';
 import LaptopView from './components/LaptopView';
 import MobileView from './components/MobileView';
 
-const LOCAL_STORAGE_KEY = 'shivas_cabanas_v3';
-const DEFAULT_SYNC_ID = 'shivas-main-branch';
+const LOCAL_STORAGE_KEY = 'shivas_cabanas_v4_master';
+const DEFAULT_SYNC_ID = 'shivas-direct-sync-' + Math.random().toString(36).substring(7);
 
 const App: React.FC = () => {
   const [device, setDevice] = useState<DeviceView>(() => {
-    // Auto-detect view based on screen width if not specified
+    const params = new URLSearchParams(window.location.search);
+    const forceView = params.get('view') as DeviceView;
+    if (forceView) return forceView;
     if (window.innerWidth < 768) return 'ANDROID';
     return 'LAPTOP';
   });
@@ -22,8 +24,8 @@ const App: React.FC = () => {
   });
   
   const [syncStatus, setSyncStatus] = useState<'OFFLINE' | 'SYNCING' | 'LIVE'>('OFFLINE');
+  const [lastUpdateTime, setLastUpdateTime] = useState<string>('');
   const gunRef = useRef<any>(null);
-  const ignoreNextUpdate = useRef(false);
 
   const [state, setState] = useState<AppState>(() => {
     const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
@@ -35,32 +37,31 @@ const App: React.FC = () => {
     };
   });
 
-  // 1. Initialize Gun.js with multiple relays for redundancy
+  // 1. Initialize Gun.js with aggressive relay peers
   useEffect(() => {
     // @ts-ignore
     const gun = window.Gun([
       'https://gun-manhattan.herokuapp.com/gun',
-      'https://gun-server.herokuapp.com/gun',
-      'https://relay.peer.ooo/gun'
+      'https://relay.peer.ooo/gun',
+      'https://gun-us.herokuapp.com/gun'
     ]);
     gunRef.current = gun;
 
-    const channel = gun.get('shivas_beach_v3').get(syncId);
+    const channel = gun.get('shivas_v4').get(syncId);
     setSyncStatus('SYNCING');
 
-    // Listen for remote updates
+    // Subscribe to updates
     channel.on((data: any) => {
       if (data && data.payload) {
         try {
           const remoteState = JSON.parse(data.payload);
-          // Only update local state if we are a VIEWER or if the remote timestamp is newer
-          // (Mobile views should always follow the cloud)
+          // Only viewers update their state from the network
+          // This prevents "fighting" where a mobile device might overwrite the laptop
           if (device !== 'LAPTOP') {
-            ignoreNextUpdate.current = true;
             setState(remoteState);
+            setLastUpdateTime(new Date().toLocaleTimeString());
           }
           setSyncStatus('LIVE');
-          setTimeout(() => setSyncStatus('LIVE'), 1000);
         } catch (e) {
           console.error("Sync error:", e);
         }
@@ -72,32 +73,24 @@ const App: React.FC = () => {
     };
   }, [syncId, device]);
 
-  // 2. Broadcast state (ONLY if LAPTOP)
+  // 2. Broadcast updates (LAPTOP ONLY)
   useEffect(() => {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(state));
-    localStorage.setItem('shivas_sync_id', syncId);
-    
-    // Only 'LAPTOP' is the Master Broadcaster
-    if (device === 'LAPTOP' && gunRef.current) {
-      if (ignoreNextUpdate.current) {
-        ignoreNextUpdate.current = false;
-        return;
+    if (device === 'LAPTOP') {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(state));
+      localStorage.setItem('shivas_sync_id', syncId);
+      
+      if (gunRef.current) {
+        setSyncStatus('SYNCING');
+        gunRef.current.get('shivas_v4').get(syncId).put({ 
+          payload: JSON.stringify(state),
+          updatedAt: Date.now()
+        });
+        setSyncStatus('LIVE');
       }
-      
-      setSyncStatus('SYNCING');
-      gunRef.current.get('shivas_beach_v3').get(syncId).put({ 
-        payload: JSON.stringify(state),
-        sender: 'LAPTOP-MASTER',
-        timestamp: Date.now()
-      });
-      
-      // Artificial delay to show sync status
-      const timer = setTimeout(() => setSyncStatus('LIVE'), 500);
-      return () => clearTimeout(timer);
     }
   }, [state, syncId, device]);
 
-  // 3. Auto-load Rates
+  // 3. Currency Rates
   useEffect(() => {
     const loadRates = async () => {
       const newRates = await fetchLkrRates();
@@ -108,7 +101,7 @@ const App: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // --- Calculations ---
+  // --- Logic ---
   const outPartyTotals = useMemo(() => {
     return state.outPartyEntries.reduce(
       (acc, curr) => ({
@@ -126,36 +119,38 @@ const App: React.FC = () => {
     const manualCashOutTotal = state.mainEntries.reduce((sum, e) => sum + e.cashOut, 0);
     const balancingCashOut = state.mainEntries.reduce((sum, e) => (e.isCard || e.isPayPal) ? sum + e.cashIn : sum, 0);
     const totalCashOut = manualCashOutTotal + balancingCashOut + outPartyTotals.card + outPartyTotals.paypal;
-    
     const ledgerCardTotal = state.mainEntries.reduce((sum, e) => e.isCard ? sum + e.cashIn : sum, 0);
     const ledgerPayPalTotal = state.mainEntries.reduce((sum, e) => e.isPayPal ? sum + e.cashIn : sum, 0);
-
     const finalCardTotal = ledgerCardTotal + outPartyTotals.card;
     const finalPayPalTotal = ledgerPayPalTotal + outPartyTotals.paypal;
     const drawerBalance = totalCashIn - totalCashOut;
-
     return { totalCashIn, totalCashOut, drawerBalance, finalCardTotal, finalPayPalTotal };
   }, [state, outPartyTotals]);
 
-  // --- Actions ---
+  // --- Handlers (Laptop Only) ---
   const addOutPartyEntry = (entry: OutPartyEntry) => {
+    if (device !== 'LAPTOP') return;
     setState(prev => ({ ...prev, outPartyEntries: [...prev.outPartyEntries, entry] }));
   };
 
   const addMainEntry = (entry: MainEntry) => {
+    if (device !== 'LAPTOP') return;
     setState(prev => ({ ...prev, mainEntries: [...prev.mainEntries, entry] }));
   };
 
   const deleteOutParty = (id: string) => {
+    if (device !== 'LAPTOP') return;
     setState(prev => ({ ...prev, outPartyEntries: prev.outPartyEntries.filter(e => e.id !== id) }));
   };
 
   const deleteMain = (id: string) => {
+    if (device !== 'LAPTOP') return;
     setState(prev => ({ ...prev, mainEntries: prev.mainEntries.filter(e => e.id !== id) }));
   };
 
   const endDay = () => {
-    if (window.confirm("End Day: Clear records and carry LKR " + mainCalculations.drawerBalance.toLocaleString() + " forward?")) {
+    if (device !== 'LAPTOP') return;
+    if (window.confirm("End Work Day? This clears today's logs and carries the balance forward.")) {
       setState({
         outPartyEntries: [],
         mainEntries: [],
@@ -165,27 +160,28 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      {/* Platform Switcher & Sync Status */}
-      <div className="bg-slate-900 text-white p-3 flex flex-wrap justify-center items-center gap-3 sticky top-0 z-50 shadow-xl border-b border-white/5">
-        <div className="flex items-center space-x-3 px-4 border-r border-slate-700">
-          <div className={`w-3 h-3 rounded-full ${
-            syncStatus === 'LIVE' ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.8)]' : 
-            syncStatus === 'SYNCING' ? 'bg-blue-500 live-indicator' : 'bg-slate-600'
-          }`}></div>
-          <span className="text-[10px] font-black uppercase tracking-widest text-slate-300">
-            {syncStatus} {device === 'LAPTOP' ? '• BROADCASTING' : '• RECEIVING'}
+    <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
+      {/* Dynamic Sync Status Bar */}
+      <div className="bg-slate-900 text-white p-3 flex justify-between items-center px-6 sticky top-0 z-50 border-b border-white/10">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <div className={`w-2.5 h-2.5 rounded-full ${syncStatus === 'LIVE' ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.6)]' : 'bg-blue-500 live-indicator'}`}></div>
+            <span className="text-[10px] font-black tracking-widest uppercase text-slate-400">{syncStatus}</span>
+          </div>
+          <div className="h-4 w-px bg-slate-700 hidden sm:block"></div>
+          <span className="text-[10px] font-black tracking-widest uppercase text-blue-400 hidden sm:block">
+            {device === 'LAPTOP' ? 'Master Terminal' : `Live Viewer • ${lastUpdateTime || 'Wait'}`}
           </span>
         </div>
         
-        <div className="flex bg-slate-800 p-1 rounded-xl">
-          <button onClick={() => setDevice('LAPTOP')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black transition-all ${device === 'LAPTOP' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500'}`}>LAPTOP</button>
-          <button onClick={() => setDevice('ANDROID')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black transition-all ${device === 'ANDROID' ? 'bg-green-600 text-white shadow-lg' : 'text-slate-500'}`}>ANDROID</button>
-          <button onClick={() => setDevice('IPHONE')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black transition-all ${device === 'IPHONE' ? 'bg-white text-black shadow-lg' : 'text-slate-500'}`}>IPHONE</button>
+        <div className="flex bg-slate-800 p-1 rounded-lg">
+          <button onClick={() => setDevice('LAPTOP')} className={`px-3 py-1 rounded-md text-[9px] font-black transition-all ${device === 'LAPTOP' ? 'bg-blue-600 text-white' : 'text-slate-500'}`}>LAPTOP</button>
+          <button onClick={() => setDevice('ANDROID')} className={`px-3 py-1 rounded-md text-[9px] font-black transition-all ${device === 'ANDROID' ? 'bg-green-600 text-white' : 'text-slate-500'}`}>ANDROID</button>
+          <button onClick={() => setDevice('IPHONE')} className={`px-3 py-1 rounded-md text-[9px] font-black transition-all ${device === 'IPHONE' ? 'bg-white text-black' : 'text-slate-500'}`}>IPHONE</button>
         </div>
       </div>
 
-      <main className="flex-1 p-4 md:p-8">
+      <main className="flex-1 overflow-x-hidden">
         {device === 'LAPTOP' ? (
           <LaptopView 
             state={state} 

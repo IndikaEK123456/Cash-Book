@@ -11,6 +11,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
     <!-- Gun.js for high-speed sync -->
     <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+    <!-- QRCode library for easy device pairing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -27,6 +29,12 @@
             100% { transform: scale(0.95); opacity: 0.5; }
         }
         .live-indicator { animation: pulse-live 1.5s infinite; }
+
+        @keyframes data-flash {
+            0% { background-color: rgba(34, 197, 94, 0.2); }
+            100% { background-color: transparent; }
+        }
+        .data-updated { animation: data-flash 0.8s ease-out; }
     </style>
 <script type="importmap">
 {
