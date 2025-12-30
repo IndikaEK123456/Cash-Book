@@ -6,12 +6,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Shivas Beach Cabanas | Live Ledger</title>
+    <title>Shivas Beach Cabanas | Ultra-Sync Ledger</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
-    <!-- Gun.js for high-speed sync -->
+    <!-- Gun.js for high-speed P2P sync -->
     <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
-    <!-- QRCode library for easy device pairing -->
+    <!-- QRCode library for instant pairing -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         body {
@@ -24,17 +24,25 @@
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
         
         @keyframes pulse-live {
-            0% { transform: scale(0.95); opacity: 0.5; }
-            50% { transform: scale(1.05); opacity: 1; }
-            100% { transform: scale(0.95); opacity: 0.5; }
+            0% { transform: scale(0.85); opacity: 0.4; background-color: #3b82f6; }
+            50% { transform: scale(1.2); opacity: 1; background-color: #22c55e; }
+            100% { transform: scale(0.85); opacity: 0.4; background-color: #3b82f6; }
         }
-        .live-indicator { animation: pulse-live 1.5s infinite; }
+        .live-status-pulse { animation: pulse-live 1.2s infinite; }
 
-        @keyframes data-flash {
-            0% { background-color: rgba(34, 197, 94, 0.2); }
+        @keyframes data-receive-flash {
+            0% { background-color: rgba(34, 197, 94, 0.5); }
             100% { background-color: transparent; }
         }
-        .data-updated { animation: data-flash 0.8s ease-out; }
+        .flash-update { animation: data-receive-flash 0.4s ease-out; }
+
+        input::placeholder { color: #94a3b8; font-weight: 600; }
+        
+        /* Force ultra-dark text for all inputs */
+        input, select, textarea {
+            color: #000000 !important;
+            font-weight: 900 !important;
+        }
     </style>
 <script type="importmap">
 {
