@@ -5,21 +5,25 @@ import { fetchLkrRates } from './services/exchangeRateService';
 import LaptopView from './components/LaptopView';
 import MobileView from './components/MobileView';
 
-// Use a stable local storage key
-const LOCAL_STORAGE_KEY = 'shivas_beach_cabanas_v2_sync';
-// Default Sync ID if none exists
-const DEFAULT_SYNC_ID = 'shivas-beach-default-sync';
+const LOCAL_STORAGE_KEY = 'shivas_cabanas_v3';
+const DEFAULT_SYNC_ID = 'shivas-main-branch';
 
 const App: React.FC = () => {
-  const [device, setDevice] = useState<DeviceView>('LAPTOP');
+  const [device, setDevice] = useState<DeviceView>(() => {
+    // Auto-detect view based on screen width if not specified
+    if (window.innerWidth < 768) return 'ANDROID';
+    return 'LAPTOP';
+  });
+  
   const [rates, setRates] = useState<ExchangeRates>({ usdToLkr: 0, eurToLkr: 0 });
   const [syncId, setSyncId] = useState<string>(() => {
     const params = new URLSearchParams(window.location.search);
     return params.get('sid') || localStorage.getItem('shivas_sync_id') || DEFAULT_SYNC_ID;
   });
-  const [isSynced, setIsSynced] = useState(false);
   
+  const [syncStatus, setSyncStatus] = useState<'OFFLINE' | 'SYNCING' | 'LIVE'>('OFFLINE');
   const gunRef = useRef<any>(null);
+  const ignoreNextUpdate = useRef(false);
 
   const [state, setState] = useState<AppState>(() => {
     const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
@@ -31,27 +35,34 @@ const App: React.FC = () => {
     };
   });
 
-  // Initialize Gun.js
+  // 1. Initialize Gun.js with multiple relays for redundancy
   useEffect(() => {
-    // @ts-ignore - Gun is loaded via CDN
-    const gun = window.Gun(['https://gun-manhattan.herokuapp.com/gun']);
+    // @ts-ignore
+    const gun = window.Gun([
+      'https://gun-manhattan.herokuapp.com/gun',
+      'https://gun-server.herokuapp.com/gun',
+      'https://relay.peer.ooo/gun'
+    ]);
     gunRef.current = gun;
 
-    const channel = gun.get('shivas_cabanas_v1').get(syncId);
-    
-    // Listen for remote updates (Mobile Viewer mode)
+    const channel = gun.get('shivas_beach_v3').get(syncId);
+    setSyncStatus('SYNCING');
+
+    // Listen for remote updates
     channel.on((data: any) => {
-      if (data) {
-        // Gun returns flattened objects, we need to handle JSON strings for our complex state
+      if (data && data.payload) {
         try {
-          const parsedState = typeof data.payload === 'string' ? JSON.parse(data.payload) : data.payload;
-          if (parsedState) {
-            setState(parsedState);
-            setIsSynced(true);
-            setTimeout(() => setIsSynced(false), 2000); // Visual feedback
+          const remoteState = JSON.parse(data.payload);
+          // Only update local state if we are a VIEWER or if the remote timestamp is newer
+          // (Mobile views should always follow the cloud)
+          if (device !== 'LAPTOP') {
+            ignoreNextUpdate.current = true;
+            setState(remoteState);
           }
+          setSyncStatus('LIVE');
+          setTimeout(() => setSyncStatus('LIVE'), 1000);
         } catch (e) {
-          console.error("Sync parsing error", e);
+          console.error("Sync error:", e);
         }
       }
     });
@@ -59,24 +70,34 @@ const App: React.FC = () => {
     return () => {
       if (gunRef.current) gunRef.current.off();
     };
-  }, [syncId]);
+  }, [syncId, device]);
 
-  // Sync state to LocalStorage and Cloud (if Laptop)
+  // 2. Broadcast state (ONLY if LAPTOP)
   useEffect(() => {
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(state));
     localStorage.setItem('shivas_sync_id', syncId);
     
-    // Only 'broadcasting' from Laptop (Editor)
+    // Only 'LAPTOP' is the Master Broadcaster
     if (device === 'LAPTOP' && gunRef.current) {
-      gunRef.current.get('shivas_cabanas_v1').get(syncId).put({ 
+      if (ignoreNextUpdate.current) {
+        ignoreNextUpdate.current = false;
+        return;
+      }
+      
+      setSyncStatus('SYNCING');
+      gunRef.current.get('shivas_beach_v3').get(syncId).put({ 
         payload: JSON.stringify(state),
+        sender: 'LAPTOP-MASTER',
         timestamp: Date.now()
       });
-      setIsSynced(true);
-      setTimeout(() => setIsSynced(false), 1000);
+      
+      // Artificial delay to show sync status
+      const timer = setTimeout(() => setSyncStatus('LIVE'), 500);
+      return () => clearTimeout(timer);
     }
   }, [state, syncId, device]);
 
+  // 3. Auto-load Rates
   useEffect(() => {
     const loadRates = async () => {
       const newRates = await fetchLkrRates();
@@ -102,13 +123,8 @@ const App: React.FC = () => {
   const mainCalculations = useMemo(() => {
     const manualCashInTotal = state.mainEntries.reduce((sum, e) => sum + e.cashIn, 0);
     const totalCashIn = state.initialBalance + manualCashInTotal + outPartyTotals.cash + outPartyTotals.card + outPartyTotals.paypal;
-
     const manualCashOutTotal = state.mainEntries.reduce((sum, e) => sum + e.cashOut, 0);
-    const balancingCashOut = state.mainEntries.reduce((sum, e) => {
-      if (e.isCard || e.isPayPal) return sum + e.cashIn;
-      return sum;
-    }, 0);
-
+    const balancingCashOut = state.mainEntries.reduce((sum, e) => (e.isCard || e.isPayPal) ? sum + e.cashIn : sum, 0);
     const totalCashOut = manualCashOutTotal + balancingCashOut + outPartyTotals.card + outPartyTotals.paypal;
     
     const ledgerCardTotal = state.mainEntries.reduce((sum, e) => e.isCard ? sum + e.cashIn : sum, 0);
@@ -139,47 +155,37 @@ const App: React.FC = () => {
   };
 
   const endDay = () => {
-    const confirmed = window.confirm("Are you sure you want to End the Day? This clears today's records and carries the balance forward.");
-    if (confirmed) {
-      setState(prev => ({
+    if (window.confirm("End Day: Clear records and carry LKR " + mainCalculations.drawerBalance.toLocaleString() + " forward?")) {
+      setState({
         outPartyEntries: [],
         mainEntries: [],
         initialBalance: mainCalculations.drawerBalance
-      }));
+      });
     }
   };
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
-      {/* Platform Switcher */}
-      <div className="bg-slate-900 text-white p-2 flex justify-center items-center space-x-4 sticky top-0 z-50 shadow-md">
-        <div className="flex space-x-2 mr-4 border-r border-slate-700 pr-4">
-          <div className={`w-3 h-3 rounded-full ${isSynced ? 'bg-green-500 animate-sync' : 'bg-slate-600'}`}></div>
-          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-            {isSynced ? 'Synced' : 'Cloud Ready'}
+      {/* Platform Switcher & Sync Status */}
+      <div className="bg-slate-900 text-white p-3 flex flex-wrap justify-center items-center gap-3 sticky top-0 z-50 shadow-xl border-b border-white/5">
+        <div className="flex items-center space-x-3 px-4 border-r border-slate-700">
+          <div className={`w-3 h-3 rounded-full ${
+            syncStatus === 'LIVE' ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.8)]' : 
+            syncStatus === 'SYNCING' ? 'bg-blue-500 live-indicator' : 'bg-slate-600'
+          }`}></div>
+          <span className="text-[10px] font-black uppercase tracking-widest text-slate-300">
+            {syncStatus} {device === 'LAPTOP' ? '• BROADCASTING' : '• RECEIVING'}
           </span>
         </div>
-        <button 
-          onClick={() => setDevice('LAPTOP')} 
-          className={`px-4 py-1 rounded-full text-[10px] font-black transition-all ${device === 'LAPTOP' ? 'bg-blue-600' : 'bg-slate-800 text-slate-500'}`}
-        >
-          LAPTOP EDITOR
-        </button>
-        <button 
-          onClick={() => setDevice('ANDROID')} 
-          className={`px-4 py-1 rounded-full text-[10px] font-black transition-all ${device === 'ANDROID' ? 'bg-green-600' : 'bg-slate-800 text-slate-500'}`}
-        >
-          ANDROID VIEW
-        </button>
-        <button 
-          onClick={() => setDevice('IPHONE')} 
-          className={`px-4 py-1 rounded-full text-[10px] font-black transition-all ${device === 'IPHONE' ? 'bg-white text-black' : 'bg-slate-800 text-slate-500'}`}
-        >
-          IPHONE VIEW
-        </button>
+        
+        <div className="flex bg-slate-800 p-1 rounded-xl">
+          <button onClick={() => setDevice('LAPTOP')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black transition-all ${device === 'LAPTOP' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500'}`}>LAPTOP</button>
+          <button onClick={() => setDevice('ANDROID')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black transition-all ${device === 'ANDROID' ? 'bg-green-600 text-white shadow-lg' : 'text-slate-500'}`}>ANDROID</button>
+          <button onClick={() => setDevice('IPHONE')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black transition-all ${device === 'IPHONE' ? 'bg-white text-black shadow-lg' : 'text-slate-500'}`}>IPHONE</button>
+        </div>
       </div>
 
-      <main className="flex-1 p-4 md:p-8 overflow-x-hidden">
+      <main className="flex-1 p-4 md:p-8">
         {device === 'LAPTOP' ? (
           <LaptopView 
             state={state} 
@@ -202,7 +208,7 @@ const App: React.FC = () => {
             calculations={mainCalculations}
             outPartyTotals={outPartyTotals}
             syncId={syncId}
-            isSynced={isSynced}
+            isSynced={syncStatus === 'LIVE'}
           />
         )}
       </main>

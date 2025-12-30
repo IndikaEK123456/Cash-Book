@@ -57,73 +57,47 @@ const LaptopView: React.FC<LaptopViewProps> = ({
   const copySyncLink = () => {
     const url = `${window.location.origin}${window.location.pathname}?sid=${syncId}`;
     navigator.clipboard.writeText(url);
-    alert("Sync link copied! Open this on your mobile devices to view real-time updates.");
+    alert("Viewer link copied! Open this on your Android/iPhone for real-time updates.");
   };
-
-  const currentDate = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
   return (
     <div className="max-w-[1400px] mx-auto pb-20">
-      <div className="flex flex-col lg:flex-row justify-between items-start mb-10">
-        <div className="animate-in fade-in slide-in-from-left duration-700">
-          <h1 className="text-6xl font-[900] text-slate-900 mb-2 tracking-tighter leading-none">
-            Shivas Beach <span className="text-blue-600">Cabanas</span>
+      <div className="flex flex-col lg:flex-row justify-between items-start mb-8">
+        <div>
+          <h1 className="text-6xl font-[900] text-slate-900 tracking-tighter mb-2">
+            Shivas <span className="text-blue-600">Beach</span>
           </h1>
-          <div className="flex items-center space-x-2">
-            <div className="h-1 w-12 bg-blue-600 rounded-full"></div>
-            <p className="text-slate-500 font-bold tracking-widest text-xs uppercase">Premium Ledger Management</p>
-          </div>
+          <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Master Control Terminal</p>
         </div>
-        
-        <div className="flex flex-col items-end space-y-4 mt-6 lg:mt-0 animate-in fade-in slide-in-from-right duration-700">
-           <div className="flex items-center space-x-3">
-              <div className="text-right">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Master Session</p>
-                <div className="text-slate-950 font-black text-3xl tabular-nums">{currentDate}</div>
-              </div>
-           </div>
-           
-           <div className="flex items-center space-x-4">
-             <ExchangeRatesView rates={rates} />
-             <button 
-               onClick={onEndDay}
-               className="group bg-red-600 hover:bg-red-700 text-white font-black px-8 py-4 rounded-2xl shadow-xl hover:shadow-red-200 transition-all uppercase tracking-widest text-xs flex items-center space-x-3 active:scale-95"
-             >
-               <span>End Work Day</span>
-               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line></svg>
-             </button>
-           </div>
+        <div className="mt-6 lg:mt-0 flex flex-col items-end gap-4">
+           <ExchangeRatesView rates={rates} />
+           <button onClick={onEndDay} className="bg-red-600 hover:bg-red-700 text-white font-black px-8 py-4 rounded-2xl shadow-xl transition-all uppercase text-xs active:scale-95">End Work Day</button>
         </div>
       </div>
 
-      {/* Connectivity & Sync Panel */}
-      <div className="bg-slate-900 rounded-[2.5rem] p-8 mb-10 text-white flex flex-col md:flex-row items-center justify-between shadow-2xl border border-slate-800">
-        <div className="flex items-center space-x-6 mb-6 md:mb-0">
-          <div className="h-16 w-16 bg-blue-600/20 rounded-3xl flex items-center justify-center text-blue-500">
-             <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+      <div className="bg-slate-900 rounded-[2.5rem] p-8 mb-10 text-white shadow-2xl border border-white/5 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/10 blur-[100px] rounded-full"></div>
+        <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+          <div className="flex items-center space-x-6">
+            <div className="h-16 w-16 bg-blue-600 rounded-3xl flex items-center justify-center text-white shadow-[0_0_20px_rgba(37,99,235,0.4)]">
+              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 11a9 9 0 0 1 9 9"></path><path d="M4 4a16 16 0 0 1 16 16"></path><circle cx="5" cy="19" r="1"></circle></svg>
+            </div>
+            <div>
+              <h3 className="text-2xl font-black">Direct Broadcast Active</h3>
+              <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Everything you type here appears on mobile instantly</p>
+            </div>
           </div>
-          <div>
-            <h3 className="text-xl font-black tracking-tight">Real-Time Connectivity</h3>
-            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Broadcasting to Android & iPhone Viewers</p>
-          </div>
-        </div>
-        
-        <div className="flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-4 w-full md:w-auto">
-          <div className="bg-slate-800 p-2 pl-6 rounded-2xl flex items-center border border-slate-700 w-full md:w-auto">
-            <span className="text-[10px] font-black text-slate-500 uppercase mr-4">Sync ID:</span>
+          
+          <div className="flex items-center gap-4 bg-slate-800/50 p-2 rounded-[1.5rem] border border-white/5">
             <input 
               type="text" 
               value={syncId} 
               onChange={(e) => onSyncIdChange(e.target.value)} 
-              className="bg-transparent border-none outline-none font-black text-blue-400 w-32" 
+              placeholder="Sync Channel Name"
+              className="bg-transparent px-4 outline-none font-black text-blue-400 w-48 text-lg" 
             />
+            <button onClick={copySyncLink} className="bg-blue-600 hover:bg-blue-500 px-6 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all">Copy Live Link</button>
           </div>
-          <button 
-            onClick={copySyncLink}
-            className="w-full md:w-auto bg-blue-600 hover:bg-blue-500 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95"
-          >
-            Copy Viewer Link
-          </button>
         </div>
       </div>
 
@@ -135,165 +109,114 @@ const LaptopView: React.FC<LaptopViewProps> = ({
         finalPayPalTotal={calculations.finalPayPalTotal}
       />
 
-      <div className="grid grid-cols-1 gap-12">
-        {/* Out Party Section */}
-        <section className="bg-white rounded-[3rem] shadow-2xl shadow-slate-200/50 border border-slate-100 overflow-hidden">
-          <div className="bg-slate-50 px-10 py-8 border-b border-slate-100 flex justify-between items-center">
-            <div>
-              <h2 className="text-3xl font-black text-slate-800 tracking-tight">Out Party Ledger</h2>
-              <p className="text-slate-400 text-sm font-bold uppercase tracking-wider">External Assets & Events</p>
-            </div>
-            <div className="h-12 w-12 bg-blue-100 rounded-2xl flex items-center justify-center text-blue-600">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
-            </div>
+      <div className="space-y-12">
+        {/* Forms and Tables remain but with polished styles */}
+        <section className="bg-white rounded-[3rem] shadow-xl border border-slate-100 overflow-hidden">
+          <div className="bg-slate-50 px-10 py-6 border-b flex justify-between items-center">
+            <h2 className="text-2xl font-black text-slate-800">Out Party Ledger</h2>
           </div>
-          
           <div className="p-10">
-            <form onSubmit={handleAddOutParty} className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12 bg-slate-50 p-8 rounded-[2rem] border-2 border-dashed border-slate-200">
-              {['Cash', 'Card', 'PayPal'].map((label) => (
+            <form onSubmit={handleAddOutParty} className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+              {['Cash', 'Card', 'PayPal'].map(label => (
                 <div key={label} className="space-y-2">
-                  <label className="text-xs font-black text-slate-500 uppercase ml-1">{label} In</label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">LKR</span>
-                    <input 
-                      type="number" 
-                      placeholder="0.00" 
-                      value={(opForm as any)[label.toLowerCase()]} 
-                      onChange={e => setOpForm({...opForm, [label.toLowerCase()]: e.target.value})} 
-                      className="w-full bg-white border-2 border-slate-100 p-4 pl-14 rounded-2xl focus:border-blue-500 outline-none text-slate-950 font-black text-xl transition-all" 
-                    />
-                  </div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{label} In</label>
+                  <input 
+                    type="number" 
+                    value={(opForm as any)[label.toLowerCase()]} 
+                    onChange={e => setOpForm({...opForm, [label.toLowerCase()]: e.target.value})} 
+                    className="w-full bg-slate-50 border-2 border-slate-100 p-4 rounded-2xl font-black text-xl outline-none focus:border-blue-500" 
+                    placeholder="0.00"
+                  />
                 </div>
               ))}
               <div className="flex items-end">
-                <button type="submit" className="w-full bg-slate-900 hover:bg-black text-white font-black py-5 rounded-2xl transition-all shadow-xl active:scale-[0.98] uppercase tracking-widest text-xs">Add Record</button>
+                <button type="submit" className="w-full bg-slate-900 text-white font-black py-5 rounded-2xl uppercase text-[10px] tracking-widest">Record In</button>
               </div>
             </form>
-
-            <div className="overflow-x-auto rounded-3xl border border-slate-100">
+            <div className="overflow-hidden rounded-2xl border border-slate-50">
               <table className="w-full text-left">
-                <thead className="bg-slate-50">
+                <thead className="bg-slate-900 text-white text-[10px] uppercase font-black">
                   <tr>
-                    <th className="py-5 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Time</th>
-                    <th className="py-5 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Cash</th>
-                    <th className="py-5 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Card</th>
-                    <th className="py-5 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">PayPal</th>
-                    <th className="py-5 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Del</th>
+                    <th className="p-5">Time</th>
+                    <th className="p-5">Cash</th>
+                    <th className="p-5">Card</th>
+                    <th className="p-5">PayPal</th>
+                    <th className="p-5 text-right">Action</th>
                   </tr>
                 </thead>
-                <tbody className="font-bold">
-                  {state.outPartyEntries.map(entry => (
-                    <tr key={entry.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-                      <td className="py-6 px-6 text-sm text-slate-500">{entry.date}</td>
-                      <td className="py-6 px-6 text-blue-600 font-black text-xl">{entry.cash.toLocaleString()}</td>
-                      <td className="py-6 px-6 text-yellow-600 font-black text-xl">{entry.card.toLocaleString()}</td>
-                      <td className="py-6 px-6 text-purple-600 font-black text-xl">{entry.paypal.toLocaleString()}</td>
-                      <td className="py-6 px-6 text-right">
-                        <button onClick={() => onDeleteOutParty(entry.id)} className="p-2 text-red-300 hover:text-red-600 transition-colors">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path></svg>
-                        </button>
+                <tbody className="font-bold text-lg">
+                  {state.outPartyEntries.slice().reverse().map(entry => (
+                    <tr key={entry.id} className="border-b border-slate-50 hover:bg-slate-50">
+                      <td className="p-5 text-slate-400 text-sm">{entry.date}</td>
+                      <td className="p-5 text-blue-600">{entry.cash.toLocaleString()}</td>
+                      <td className="p-5 text-yellow-600">{entry.card.toLocaleString()}</td>
+                      <td className="p-5 text-purple-600">{entry.paypal.toLocaleString()}</td>
+                      <td className="p-5 text-right">
+                        <button onClick={() => onDeleteOutParty(entry.id)} className="text-red-300 hover:text-red-600 transition-colors">Delete</button>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-              <div className="bg-slate-900 text-white p-8 flex justify-between items-center">
-                <span className="font-black text-xs tracking-[0.3em] uppercase opacity-50">Out-Party Totals</span>
-                <div className="flex space-x-12">
-                  <div className="text-right"><p className="text-[9px] font-black text-blue-400 uppercase">Cash</p><p className="text-2xl font-black">{outPartyTotals.cash.toLocaleString()}</p></div>
-                  <div className="text-right"><p className="text-[9px] font-black text-yellow-400 uppercase">Card</p><p className="text-2xl font-black">{outPartyTotals.card.toLocaleString()}</p></div>
-                  <div className="text-right"><p className="text-[9px] font-black text-purple-400 uppercase">PayPal</p><p className="text-2xl font-black">{outPartyTotals.paypal.toLocaleString()}</p></div>
-                </div>
-              </div>
             </div>
           </div>
         </section>
 
-        {/* Main Ledger Section */}
-        <section className="bg-white rounded-[3rem] shadow-2xl shadow-slate-200/50 border border-slate-100 overflow-hidden">
-          <div className="bg-slate-900 px-10 py-8 border-b border-slate-800 flex justify-between items-center">
-            <div>
-              <h2 className="text-3xl font-black text-white tracking-tight">Main Cash Ledger</h2>
-              <p className="text-slate-500 text-sm font-bold uppercase tracking-wider">Internal Cabana Operations</p>
-            </div>
-            <div className="h-12 w-12 bg-white/10 rounded-2xl flex items-center justify-center text-green-400">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"></rect></svg>
-            </div>
+        <section className="bg-white rounded-[3rem] shadow-xl border border-slate-100 overflow-hidden">
+          <div className="bg-slate-900 px-10 py-6 flex justify-between items-center text-white">
+            <h2 className="text-2xl font-black">Main Cash Ledger</h2>
           </div>
           <div className="p-10">
-            <form onSubmit={handleAddMain} className="grid grid-cols-1 md:grid-cols-7 gap-4 mb-12 bg-slate-50 p-8 rounded-[2rem] border-2 border-dashed border-slate-200">
-              <div className="flex flex-col space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase">Room No.</label>
-                <input type="text" placeholder="RM-" value={mainForm.roomNo} onChange={e => setMainForm({...mainForm, roomNo: e.target.value})} className="bg-white border-2 border-slate-100 p-4 rounded-xl outline-none focus:border-blue-500 text-slate-950 font-black text-lg transition-all" />
+            <form onSubmit={handleAddMain} className="grid grid-cols-1 md:grid-cols-7 gap-4 mb-10">
+              <input type="text" placeholder="RM-" value={mainForm.roomNo} onChange={e => setMainForm({...mainForm, roomNo: e.target.value})} className="bg-slate-50 border-2 border-slate-100 p-4 rounded-xl font-black outline-none" />
+              <input type="text" placeholder="Detail..." value={mainForm.description} onChange={e => setMainForm({...mainForm, description: e.target.value})} className="bg-slate-50 border-2 border-slate-100 p-4 rounded-xl font-black outline-none md:col-span-2" />
+              <input type="number" placeholder="In" value={mainForm.cashIn} onChange={e => setMainForm({...mainForm, cashIn: e.target.value})} className="bg-slate-50 border-2 border-slate-100 p-4 rounded-xl font-black outline-none text-green-600" />
+              <input type="number" placeholder="Out" value={mainForm.cashOut} onChange={e => setMainForm({...mainForm, cashOut: e.target.value})} className="bg-slate-50 border-2 border-slate-100 p-4 rounded-xl font-black outline-none text-red-600" />
+              <div className="flex flex-col gap-1 justify-center px-2">
+                <label className="text-[10px] font-black flex items-center gap-2"><input type="checkbox" checked={mainForm.isCard} onChange={e => setMainForm({...mainForm, isCard: e.target.checked})} /> CARD</label>
+                <label className="text-[10px] font-black flex items-center gap-2"><input type="checkbox" checked={mainForm.isPayPal} onChange={e => setMainForm({...mainForm, isPayPal: e.target.checked})} /> PAYPAL</label>
               </div>
-              <div className="flex flex-col space-y-2 md:col-span-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase">Detail</label>
-                <input type="text" placeholder="Description..." value={mainForm.description} onChange={e => setMainForm({...mainForm, description: e.target.value})} className="bg-white border-2 border-slate-100 p-4 rounded-xl outline-none focus:border-blue-500 text-slate-950 font-black text-lg transition-all" />
-              </div>
-              <div className="flex flex-col space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase">Revenue (+)</label>
-                <input type="number" placeholder="0" value={mainForm.cashIn} onChange={e => setMainForm({...mainForm, cashIn: e.target.value})} className="bg-white border-2 border-slate-100 p-4 rounded-xl outline-none focus:border-green-500 text-slate-950 font-black text-lg transition-all" />
-              </div>
-              <div className="flex flex-col space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase">Expense (-)</label>
-                <input type="number" placeholder="0" value={mainForm.cashOut} onChange={e => setMainForm({...mainForm, cashOut: e.target.value})} className="bg-white border-2 border-slate-100 p-4 rounded-xl outline-none focus:border-red-500 text-slate-950 font-black text-lg transition-all" />
-              </div>
-              <div className="flex flex-col justify-center items-start space-y-2 px-2">
-                <label className="flex items-center space-x-3 cursor-pointer group">
-                  <input type="checkbox" checked={mainForm.isCard} onChange={e => setMainForm({...mainForm, isCard: e.target.checked})} className="w-6 h-6 rounded-md accent-yellow-500" />
-                  <span className="text-[11px] font-black text-slate-600 uppercase">Card</span>
-                </label>
-                <label className="flex items-center space-x-3 cursor-pointer group">
-                  <input type="checkbox" checked={mainForm.isPayPal} onChange={e => setMainForm({...mainForm, isPayPal: e.target.checked})} className="w-6 h-6 rounded-md accent-purple-500" />
-                  <span className="text-[11px] font-black text-slate-600 uppercase">PayPal</span>
-                </label>
-              </div>
-              <div className="flex items-end">
-                <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-5 rounded-2xl transition-all shadow-xl active:scale-[0.98] uppercase tracking-widest text-xs">Post</button>
-              </div>
+              <button type="submit" className="bg-blue-600 text-white font-black rounded-xl uppercase text-[10px] tracking-widest hover:bg-blue-700 transition-colors">Post Record</button>
             </form>
-
-            <div className="overflow-x-auto rounded-3xl border border-slate-100">
-              <table className="w-full text-left border-collapse">
-                <thead className="bg-slate-900 text-white">
+            <div className="overflow-hidden rounded-2xl border border-slate-50">
+              <table className="w-full text-left">
+                <thead className="bg-slate-900 text-white text-[10px] uppercase font-black">
                   <tr>
-                    <th className="py-6 px-6 text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Time</th>
-                    <th className="py-6 px-4 text-[10px] font-black uppercase tracking-[0.2em] opacity-60 text-center">Type</th>
-                    <th className="py-6 px-4 text-[10px] font-black uppercase tracking-[0.2em] opacity-60">RM</th>
-                    <th className="py-6 px-6 text-[10px] font-black uppercase tracking-[0.2em] opacity-60 w-[30%]">Description</th>
-                    <th className="py-6 px-6 text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Revenue</th>
-                    <th className="py-6 px-6 text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Expense</th>
-                    <th className="py-6 px-6 text-[10px] font-black uppercase tracking-[0.2em] opacity-60 text-right">Del</th>
+                    <th className="p-5">Time</th>
+                    <th className="p-5">Method</th>
+                    <th className="p-5">RM</th>
+                    <th className="p-5 w-1/3">Detail</th>
+                    <th className="p-5">Rev (+)</th>
+                    <th className="p-5">Exp (-)</th>
+                    <th className="p-5 text-right">Action</th>
                   </tr>
                 </thead>
-                <tbody className="font-black text-slate-950 text-lg">
-                   {state.initialBalance !== 0 && (
-                    <tr className="bg-blue-50 border-b-2 border-blue-100">
-                      <td className="py-6 px-6 text-slate-400 text-xs font-bold uppercase">START</td>
-                      <td className="py-6 px-4 text-center"><span className="text-[10px] bg-blue-600 text-white px-3 py-1 rounded-full font-black">BFWD</span></td>
-                      <td className="py-6 px-4">—</td>
-                      <td className="py-6 px-6 text-blue-900 font-black text-base uppercase">OPENING BALANCE</td>
-                      <td className="py-6 px-6 text-blue-600 font-black text-2xl">{state.initialBalance.toLocaleString()}</td>
-                      <td className="py-6 px-6 text-slate-300">0</td>
+                <tbody className="font-black text-lg">
+                  {state.initialBalance !== 0 && (
+                    <tr className="bg-blue-50 border-b">
+                      <td className="p-5">--</td>
+                      <td className="p-5"><span className="bg-blue-600 text-white px-3 py-1 rounded-full text-[9px]">BFWD</span></td>
+                      <td className="p-5">--</td>
+                      <td className="p-5 uppercase">Opening Balance</td>
+                      <td className="p-5 text-blue-600 text-2xl">{state.initialBalance.toLocaleString()}</td>
+                      <td className="p-5">0</td>
                       <td></td>
                     </tr>
                   )}
-                  {state.mainEntries.map(entry => (
-                    <tr key={entry.id} className="border-b border-slate-50 group hover:bg-slate-50 transition-all">
-                      <td className="py-7 px-6 font-bold text-slate-400 text-xs">{entry.date}</td>
-                      <td className="py-7 px-4 text-center">
-                        <span className={`px-4 py-1.5 rounded-full text-[9px] font-black tracking-widest ${entry.isCard ? 'bg-yellow-400 text-yellow-900' : entry.isPayPal ? 'bg-purple-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                  {state.mainEntries.slice().reverse().map(entry => (
+                    <tr key={entry.id} className="border-b border-slate-50 hover:bg-slate-50">
+                      <td className="p-5 text-slate-400 text-sm">{entry.date}</td>
+                      <td className="p-5">
+                        <span className={`px-3 py-1 rounded-full text-[9px] ${entry.isCard ? 'bg-yellow-400' : entry.isPayPal ? 'bg-purple-600 text-white' : 'bg-slate-200 text-slate-600'}`}>
                           {entry.isCard ? 'CARD' : entry.isPayPal ? 'PAYPAL' : 'CASH'}
                         </span>
                       </td>
-                      <td className="py-7 px-4 text-slate-950 font-black text-xl">{entry.roomNo || '--'}</td>
-                      <td className="py-7 px-6 text-slate-950 font-black text-base">{entry.description}</td>
-                      <td className="py-7 px-6 text-green-600 font-black text-2xl">{entry.cashIn > 0 ? entry.cashIn.toLocaleString() : '-'}</td>
-                      <td className="py-7 px-6 text-red-500 font-black text-2xl">{entry.cashOut > 0 ? entry.cashOut.toLocaleString() : '-'}</td>
-                      <td className="py-7 px-6 text-right">
-                        <button onClick={() => onDeleteMain(entry.id)} className="p-2 text-slate-200 hover:text-red-600">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path></svg>
-                        </button>
+                      <td className="p-5">{entry.roomNo || '--'}</td>
+                      <td className="p-5 text-base">{entry.description}</td>
+                      <td className="p-5 text-green-600">{entry.cashIn > 0 ? entry.cashIn.toLocaleString() : '-'}</td>
+                      <td className="p-5 text-red-500">{entry.cashOut > 0 ? entry.cashOut.toLocaleString() : '-'}</td>
+                      <td className="p-5 text-right">
+                        <button onClick={() => onDeleteMain(entry.id)} className="text-red-300 hover:text-red-600 transition-colors">Delete</button>
                       </td>
                     </tr>
                   ))}
