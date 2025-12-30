@@ -1,16 +1,26 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { AppState, OutPartyEntry, MainEntry, DeviceView, ExchangeRates } from './types';
 import { fetchLkrRates } from './services/exchangeRateService';
 import LaptopView from './components/LaptopView';
 import MobileView from './components/MobileView';
 
-const LOCAL_STORAGE_KEY = 'shivas_beach_cabanas_data_v1';
+// Use a stable local storage key
+const LOCAL_STORAGE_KEY = 'shivas_beach_cabanas_v2_sync';
+// Default Sync ID if none exists
+const DEFAULT_SYNC_ID = 'shivas-beach-default-sync';
 
 const App: React.FC = () => {
   const [device, setDevice] = useState<DeviceView>('LAPTOP');
   const [rates, setRates] = useState<ExchangeRates>({ usdToLkr: 0, eurToLkr: 0 });
+  const [syncId, setSyncId] = useState<string>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('sid') || localStorage.getItem('shivas_sync_id') || DEFAULT_SYNC_ID;
+  });
+  const [isSynced, setIsSynced] = useState(false);
   
+  const gunRef = useRef<any>(null);
+
   const [state, setState] = useState<AppState>(() => {
     const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (saved) return JSON.parse(saved);
@@ -21,9 +31,51 @@ const App: React.FC = () => {
     };
   });
 
+  // Initialize Gun.js
+  useEffect(() => {
+    // @ts-ignore - Gun is loaded via CDN
+    const gun = window.Gun(['https://gun-manhattan.herokuapp.com/gun']);
+    gunRef.current = gun;
+
+    const channel = gun.get('shivas_cabanas_v1').get(syncId);
+    
+    // Listen for remote updates (Mobile Viewer mode)
+    channel.on((data: any) => {
+      if (data) {
+        // Gun returns flattened objects, we need to handle JSON strings for our complex state
+        try {
+          const parsedState = typeof data.payload === 'string' ? JSON.parse(data.payload) : data.payload;
+          if (parsedState) {
+            setState(parsedState);
+            setIsSynced(true);
+            setTimeout(() => setIsSynced(false), 2000); // Visual feedback
+          }
+        } catch (e) {
+          console.error("Sync parsing error", e);
+        }
+      }
+    });
+
+    return () => {
+      if (gunRef.current) gunRef.current.off();
+    };
+  }, [syncId]);
+
+  // Sync state to LocalStorage and Cloud (if Laptop)
   useEffect(() => {
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(state));
-  }, [state]);
+    localStorage.setItem('shivas_sync_id', syncId);
+    
+    // Only 'broadcasting' from Laptop (Editor)
+    if (device === 'LAPTOP' && gunRef.current) {
+      gunRef.current.get('shivas_cabanas_v1').get(syncId).put({ 
+        payload: JSON.stringify(state),
+        timestamp: Date.now()
+      });
+      setIsSynced(true);
+      setTimeout(() => setIsSynced(false), 1000);
+    }
+  }, [state, syncId, device]);
 
   useEffect(() => {
     const loadRates = async () => {
@@ -31,12 +83,11 @@ const App: React.FC = () => {
       setRates(newRates);
     };
     loadRates();
-    const interval = setInterval(loadRates, 300000); // Update every 5 mins
+    const interval = setInterval(loadRates, 300000);
     return () => clearInterval(interval);
   }, []);
 
   // --- Calculations ---
-
   const outPartyTotals = useMemo(() => {
     return state.outPartyEntries.reduce(
       (acc, curr) => ({
@@ -60,29 +111,17 @@ const App: React.FC = () => {
 
     const totalCashOut = manualCashOutTotal + balancingCashOut + outPartyTotals.card + outPartyTotals.paypal;
     
-    // Ledger totals (main section only)
     const ledgerCardTotal = state.mainEntries.reduce((sum, e) => e.isCard ? sum + e.cashIn : sum, 0);
     const ledgerPayPalTotal = state.mainEntries.reduce((sum, e) => e.isPayPal ? sum + e.cashIn : sum, 0);
 
-    // Final combined totals
     const finalCardTotal = ledgerCardTotal + outPartyTotals.card;
     const finalPayPalTotal = ledgerPayPalTotal + outPartyTotals.paypal;
-
     const drawerBalance = totalCashIn - totalCashOut;
 
-    return {
-      totalCashIn,
-      totalCashOut,
-      drawerBalance,
-      finalCardTotal,
-      finalPayPalTotal,
-      ledgerCardTotal,
-      ledgerPayPalTotal
-    };
+    return { totalCashIn, totalCashOut, drawerBalance, finalCardTotal, finalPayPalTotal };
   }, [state, outPartyTotals]);
 
   // --- Actions ---
-
   const addOutPartyEntry = (entry: OutPartyEntry) => {
     setState(prev => ({ ...prev, outPartyEntries: [...prev.outPartyEntries, entry] }));
   };
@@ -100,7 +139,7 @@ const App: React.FC = () => {
   };
 
   const endDay = () => {
-    const confirmed = window.confirm("Are you sure you want to End the Day? This will clear today's records and carry the balance forward.");
+    const confirmed = window.confirm("Are you sure you want to End the Day? This clears today's records and carries the balance forward.");
     if (confirmed) {
       setState(prev => ({
         outPartyEntries: [],
@@ -113,24 +152,30 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       {/* Platform Switcher */}
-      <div className="bg-slate-900 text-white p-2 flex justify-center space-x-4 sticky top-0 z-50 shadow-md">
+      <div className="bg-slate-900 text-white p-2 flex justify-center items-center space-x-4 sticky top-0 z-50 shadow-md">
+        <div className="flex space-x-2 mr-4 border-r border-slate-700 pr-4">
+          <div className={`w-3 h-3 rounded-full ${isSynced ? 'bg-green-500 animate-sync' : 'bg-slate-600'}`}></div>
+          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+            {isSynced ? 'Synced' : 'Cloud Ready'}
+          </span>
+        </div>
         <button 
           onClick={() => setDevice('LAPTOP')} 
-          className={`px-4 py-1 rounded-full text-xs font-bold transition-all ${device === 'LAPTOP' ? 'bg-blue-500 scale-105 shadow-[0_0_15px_rgba(59,130,246,0.5)]' : 'bg-slate-700 opacity-60 hover:opacity-100'}`}
+          className={`px-4 py-1 rounded-full text-[10px] font-black transition-all ${device === 'LAPTOP' ? 'bg-blue-600' : 'bg-slate-800 text-slate-500'}`}
         >
-          💻 Laptop (Editor)
+          LAPTOP EDITOR
         </button>
         <button 
           onClick={() => setDevice('ANDROID')} 
-          className={`px-4 py-1 rounded-full text-xs font-bold transition-all ${device === 'ANDROID' ? 'bg-green-500 scale-105 shadow-[0_0_15px_rgba(34,197,94,0.5)]' : 'bg-slate-700 opacity-60 hover:opacity-100'}`}
+          className={`px-4 py-1 rounded-full text-[10px] font-black transition-all ${device === 'ANDROID' ? 'bg-green-600' : 'bg-slate-800 text-slate-500'}`}
         >
-          🤖 Android (Viewer)
+          ANDROID VIEW
         </button>
         <button 
           onClick={() => setDevice('IPHONE')} 
-          className={`px-4 py-1 rounded-full text-xs font-bold transition-all ${device === 'IPHONE' ? 'bg-white text-black scale-105 shadow-[0_0_15px_rgba(255,255,255,0.3)]' : 'bg-slate-700 opacity-60 hover:opacity-100'}`}
+          className={`px-4 py-1 rounded-full text-[10px] font-black transition-all ${device === 'IPHONE' ? 'bg-white text-black' : 'bg-slate-800 text-slate-500'}`}
         >
-          🍎 iPhone (Viewer)
+          IPHONE VIEW
         </button>
       </div>
 
@@ -146,6 +191,8 @@ const App: React.FC = () => {
             onDeleteOutParty={deleteOutParty}
             onDeleteMain={deleteMain}
             onEndDay={endDay}
+            syncId={syncId}
+            onSyncIdChange={setSyncId}
           />
         ) : (
           <MobileView 
@@ -154,6 +201,8 @@ const App: React.FC = () => {
             rates={rates}
             calculations={mainCalculations}
             outPartyTotals={outPartyTotals}
+            syncId={syncId}
+            isSynced={isSynced}
           />
         )}
       </main>
